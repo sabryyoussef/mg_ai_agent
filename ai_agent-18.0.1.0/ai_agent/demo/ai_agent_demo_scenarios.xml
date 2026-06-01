@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- Step 1: offline mock provider (no OpenAI quota) -->
+        <function model="product.template" name="setup_demo_mock_llm"
+                  eval="[ref('ai_agent.demo_mock_product_template')]"/>
+
+        <!-- Agents -->
+        <record id="demo_agent_payroll_helper" model="ai.agent">
+            <field name="name">Payroll Demo Assistant</field>
+            <field name="ai_agent_llm_id" ref="demo_mock_llm_chat"/>
+            <field name="status">active</field>
+            <field name="ai_role">Gulf Enterprises payroll assistant (Legacy Mixed / Day Works)</field>
+            <field name="ai_goal">Explain day works, cards, and group accounts using sample Odoo legacy data.</field>
+            <field name="ai_backstory">Trained on Mixed.exe migration scenarios and Odoo legacy_mixed_system workflows.</field>
+            <field name="ai_prompt_template">{message}</field>
+        </record>
+
+        <record id="demo_agent_odoo_helper" model="ai.agent">
+            <field name="name">Odoo Demo Helper</field>
+            <field name="ai_agent_llm_id" ref="demo_mock_llm_chat"/>
+            <field name="status">active</field>
+            <field name="ai_role">Odoo 18 technical assistant</field>
+            <field name="ai_goal">Answer questions about Odoo modules, views, and Python ORM with clear examples.</field>
+            <field name="ai_backstory">Demonstration agent using the Demo Mock LLM — safe for UAT without API billing.</field>
+            <field name="ai_prompt_template">{message}</field>
+        </record>
+
+        <record id="demo_agent_aria" model="ai.agent">
+            <field name="name">ARIA Demo (Resource Assistant)</field>
+            <field name="ai_agent_llm_id" ref="demo_mock_llm_chat"/>
+            <field name="status">active</field>
+            <field name="ai_role">Resource and operations analyst</field>
+            <field name="ai_goal">Analyze efficiency and suggest improvements for operations teams.</field>
+            <field name="ai_backstory">Demo clone of the ARIA quest persona for training workshops.</field>
+            <field name="ai_prompt_template">{message}</field>
+        </record>
+
+        <!-- Quest: Chat (Discuss) -->
+        <record id="demo_quest_chat_helper" model="ai.quest">
+            <field name="name">Demo Chat — Odoo Helper</field>
+            <field name="init_type">chat</field>
+            <field name="status">active</field>
+            <field name="code">result = quest.build(session=session,message=message_body).invoke(message_invoke)</field>
+            <field name="description">Interactive demo chat. Uses Demo Mock LLM (no API key). Open Discuss to talk to this bot after install.</field>
+        </record>
+        <record id="demo_quest_chat_helper_agent" model="ai.quest.agent">
+            <field name="ai_quest_id" ref="demo_quest_chat_helper"/>
+            <field name="ai_agent_id" ref="demo_agent_odoo_helper"/>
+        </record>
+        <function model="ai.quest" name="_onchange_init_type" eval="[ref('demo_quest_chat_helper')]"/>
+
+        <!-- Quest: Channel -->
+        <record id="demo_quest_channel" model="ai.quest">
+            <field name="name">Demo Channel — Team Assistant</field>
+            <field name="init_type">channel</field>
+            <field name="status">active</field>
+            <field name="code">result = quest.build(session=session,message=message_body).invoke(message_invoke)</field>
+            <field name="description">Shared channel demo for team questions about payroll and Odoo legacy modules.</field>
+        </record>
+        <record id="demo_quest_channel_agent" model="ai.quest.agent">
+            <field name="ai_quest_id" ref="demo_quest_channel"/>
+            <field name="ai_agent_id" ref="demo_agent_payroll_helper"/>
+        </record>
+        <function model="ai.quest" name="_onchange_init_type" eval="[ref('demo_quest_channel')]"/>
+
+        <!-- Quest: Manual (draft — for configuration training) -->
+        <record id="demo_quest_manual_draft" model="ai.quest">
+            <field name="name">Demo Manual Quest (Draft)</field>
+            <field name="init_type">manual</field>
+            <field name="status">draft</field>
+            <field name="description">Sample quest in draft state for workflow training (activate when ready).</field>
+        </record>
+        <record id="demo_quest_manual_agent" model="ai.quest.agent">
+            <field name="ai_quest_id" ref="demo_quest_manual_draft"/>
+            <field name="ai_agent_id" ref="demo_agent_aria"/>
+        </record>
+
+        <!-- Quest: Mail (partner extraction demo) -->
+        <record id="demo_quest_mail_partners" model="ai.quest">
+            <field name="name">Demo Mail — Partner Extractor</field>
+            <field name="init_type">mail</field>
+            <field name="status">active</field>
+            <field name="code">
+message_body = mail.email_from
+result = quest.build(session=session,message=message_body).invoke(quest.create_human_message(message_body))
+content = quest.get_last_ai_message_content(result)
+partner_dict = quest.json2dict(content)
+for partner in partner_dict.get('partners', []):
+    is_partner = quest.env["res.partner"].search([('name', '=', partner.get('name')), ('email', '=', partner.get('email'))])
+    if not is_partner:
+        quest.env["res.partner"].create(partner)
+            </field>
+            <field name="description">Demo mail quest: parses sender email into partners (mock LLM returns sample JSON).</field>
+        </record>
+        <record id="demo_quest_mail_agent" model="ai.quest.agent">
+            <field name="ai_quest_id" ref="demo_quest_mail_partners"/>
+            <field name="ai_agent_id" ref="demo_agent_odoo_helper"/>
+        </record>
+        <function model="ai.quest" name="_onchange_init_type" eval="[ref('demo_quest_mail_partners')]"/>
+
+        <!-- Pin Discuss sidebar threads for admin (UAT screenshots / USER_GUIDE) -->
+        <function model="ai.quest" name="setup_demo_discuss_channels"
+                  eval="[ref('demo_quest_chat_helper'), ref('demo_quest_channel')]"/>
+
+        <!-- Sales/Inventory demo loads from separate demo XML files when demo=True -->
+
+    </data>
+</odoo>

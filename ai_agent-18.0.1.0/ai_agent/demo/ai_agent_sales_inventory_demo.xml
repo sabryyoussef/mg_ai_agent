@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- Partners -->
+        <record id="demo_partner_acme" model="res.partner">
+            <field name="name">DEMO Acme Trading</field>
+            <field name="email">acme.demo@example.com</field>
+            <field name="is_company" eval="True"/>
+        </record>
+        <record id="demo_partner_beta" model="res.partner">
+            <field name="name">DEMO Beta Retail</field>
+            <field name="email">beta.demo@example.com</field>
+            <field name="is_company" eval="True"/>
+        </record>
+
+        <!-- Products -->
+        <record id="demo_product_consulting" model="product.product">
+            <field name="name">DEMO Consulting Pack</field>
+            <field name="default_code">DEMO-SRV-001</field>
+            <field name="type">service</field>
+            <field name="list_price">5000.00</field>
+            <field name="sale_ok" eval="True"/>
+        </record>
+        <record id="demo_product_bracket" model="product.product">
+            <field name="name">DEMO Steel Bracket Kit</field>
+            <field name="default_code">DEMO-PROD-010</field>
+            <field name="type">consu</field>
+            <field name="is_storable" eval="True"/>
+            <field name="list_price">120.00</field>
+            <field name="sale_ok" eval="True"/>
+        </record>
+        <record id="demo_product_chair" model="product.product">
+            <field name="name">DEMO Ergonomic Chair</field>
+            <field name="default_code">DEMO-PROD-020</field>
+            <field name="type">consu</field>
+            <field name="is_storable" eval="True"/>
+            <field name="list_price">349.00</field>
+            <field name="sale_ok" eval="True"/>
+        </record>
+        <record id="demo_product_desk" model="product.product">
+            <field name="name">DEMO Standing Desk</field>
+            <field name="default_code">DEMO-PROD-030</field>
+            <field name="type">consu</field>
+            <field name="is_storable" eval="True"/>
+            <field name="list_price">899.00</field>
+            <field name="sale_ok" eval="True"/>
+        </record>
+
+        <!-- Sales orders -->
+        <record id="demo_so_acme" model="sale.order">
+            <field name="partner_id" ref="demo_partner_acme"/>
+            <field name="client_order_ref">DEMO-ACME-2026</field>
+            <field name="user_id" ref="base.user_admin"/>
+        </record>
+        <record id="demo_so_acme_line1" model="sale.order.line">
+            <field name="order_id" ref="demo_so_acme"/>
+            <field name="product_id" ref="demo_product_consulting"/>
+            <field name="product_uom_qty">3</field>
+        </record>
+        <record id="demo_so_acme_line2" model="sale.order.line">
+            <field name="order_id" ref="demo_so_acme"/>
+            <field name="product_id" ref="demo_product_bracket"/>
+            <field name="product_uom_qty">50</field>
+        </record>
+
+        <record id="demo_so_beta" model="sale.order">
+            <field name="partner_id" ref="demo_partner_beta"/>
+            <field name="client_order_ref">DEMO-BETA-2026</field>
+            <field name="user_id" ref="base.user_admin"/>
+        </record>
+        <record id="demo_so_beta_line1" model="sale.order.line">
+            <field name="order_id" ref="demo_so_beta"/>
+            <field name="product_id" ref="demo_product_chair"/>
+            <field name="product_uom_qty">12</field>
+        </record>
+        <record id="demo_so_beta_line2" model="sale.order.line">
+            <field name="order_id" ref="demo_so_beta"/>
+            <field name="product_id" ref="demo_product_desk"/>
+            <field name="product_uom_qty">6</field>
+        </record>
+
+        <function model="ai.quest" name="setup_demo_sales_inventory_confirm_orders"/>
+        <function model="ai.quest" name="setup_demo_sales_inventory_stock"/>
+
+    </data>
+</odoo>

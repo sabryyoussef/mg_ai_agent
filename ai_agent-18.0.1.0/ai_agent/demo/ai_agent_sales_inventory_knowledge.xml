@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <function model="product.template" name="setup_demo_mock_llm"
+                  eval="[ref('ai_agent.demo_mock_product_template')]"/>
+
+        <!-- AI Memory: products, sales, stock (model → FAISS) -->
+        <record id="demo_memory_products" model="ai.memory">
+            <field name="name">DEMO Products Catalog</field>
+            <field name="memory_type">model</field>
+            <field name="model_id" ref="product.model_product_product"/>
+            <field name="field_list">['name', 'default_code', 'list_price', 'qty_available', 'type']</field>
+            <field name="filter_domain">[('default_code', 'ilike', 'DEMO-')]</field>
+            <field name="vector_type">faiss</field>
+            <field name="ai_agent_llm_id" ref="demo_mock_llm_embed"/>
+            <field name="status">draft</field>
+            <field name="nbr_rags">5</field>
+            <field name="instruction">Answer product questions using SKU (default_code), price, and quantity on hand.</field>
+        </record>
+
+        <record id="demo_memory_sale_orders" model="ai.memory">
+            <field name="name">DEMO Sales Orders</field>
+            <field name="memory_type">model</field>
+            <field name="model_id" ref="sale.model_sale_order"/>
+            <field name="field_list">['name', 'partner_id', 'client_order_ref', 'amount_total', 'state', 'date_order', 'invoice_status']</field>
+            <field name="filter_domain">[('client_order_ref', 'ilike', 'DEMO-')]</field>
+            <field name="vector_type">faiss</field>
+            <field name="ai_agent_llm_id" ref="demo_mock_llm_embed"/>
+            <field name="status">draft</field>
+            <field name="nbr_rags">5</field>
+            <field name="instruction">Answer sales questions using customer, reference, total amount, and order state.</field>
+        </record>
+
+        <record id="demo_memory_stock_quants" model="ai.memory">
+            <field name="name">DEMO Stock On Hand</field>
+            <field name="memory_type">model</field>
+            <field name="model_id" ref="stock.model_stock_quant"/>
+            <field name="field_list">['product_id', 'location_id', 'quantity', 'reserved_quantity', 'available_quantity']</field>
+            <field name="filter_domain">[('product_id.default_code', 'ilike', 'DEMO-')]</field>
+            <field name="vector_type">faiss</field>
+            <field name="ai_agent_llm_id" ref="demo_mock_llm_embed"/>
+            <field name="status">draft</field>
+            <field name="nbr_rags">5</field>
+            <field name="instruction">Answer inventory questions using product, location, and quantities.</field>
+        </record>
+
+        <!-- Agent with knowledge -->
+        <record id="demo_agent_sales_inventory" model="ai.agent">
+            <field name="name">Sales &amp; Inventory Demo Assistant</field>
+            <field name="ai_agent_llm_id" ref="demo_mock_llm_chat"/>
+            <field name="status">active</field>
+            <field name="ai_role">Odoo Sales and Inventory analyst</field>
+            <field name="ai_goal">Answer questions about DEMO sales orders, products, and stock using only the embedded knowledge base.</field>
+            <field name="ai_backstory">You know the DEMO- prefixed catalog loaded from Odoo Sales and Inventory. Cite product codes, customers, totals, and quantities from memory.</field>
+            <field name="ai_prompt_template">{message}</field>
+        </record>
+
+        <record id="demo_agent_memory_products" model="ai.agent.memory">
+            <field name="ai_agent_id" ref="demo_agent_sales_inventory"/>
+            <field name="ai_memory_id" ref="demo_memory_products"/>
+            <field name="sequence">1</field>
+        </record>
+        <record id="demo_agent_memory_sale_orders" model="ai.agent.memory">
+            <field name="ai_agent_id" ref="demo_agent_sales_inventory"/>
+            <field name="ai_memory_id" ref="demo_memory_sale_orders"/>
+            <field name="sequence">2</field>
+        </record>
+        <record id="demo_agent_memory_stock" model="ai.agent.memory">
+            <field name="ai_agent_id" ref="demo_agent_sales_inventory"/>
+            <field name="ai_memory_id" ref="demo_memory_stock_quants"/>
+            <field name="sequence">3</field>
+        </record>
+
+        <!-- Chat quest -->
+        <record id="demo_quest_sales_inventory_chat" model="ai.quest">
+            <field name="name">Demo Chat — Sales &amp; Inventory</field>
+            <field name="init_type">chat</field>
+            <field name="status">active</field>
+            <field name="use_company_info" eval="True"/>
+            <field name="use_personal_info" eval="True"/>
+            <field name="use_time_context" eval="True"/>
+            <field name="code">result = quest.build(session=session,message=message_body).invoke(message_invoke)</field>
+            <field name="description">Ask about DEMO products (DEMO-PROD-*), sales orders (DEMO-ACME-2026, DEMO-BETA-2026), and stock levels. Answers come from AI Memory built from Sales and Inventory demo data.</field>
+        </record>
+        <record id="demo_quest_sales_inventory_agent" model="ai.quest.agent">
+            <field name="ai_quest_id" ref="demo_quest_sales_inventory_chat"/>
+            <field name="ai_agent_id" ref="demo_agent_sales_inventory"/>
+        </record>
+
+        <function model="ai.quest" name="setup_demo_sales_inventory_quest"/>
+
+    </data>
+</odoo>
