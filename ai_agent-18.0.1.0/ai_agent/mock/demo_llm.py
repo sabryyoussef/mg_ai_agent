@@ -17,7 +17,6 @@ class DemoChatLLM:
         self.temperature = temperature
 
     def bind(self, **kwargs):
-        """LangGraph / create_agent compatibility."""
         return self
 
     def bind_tools(self, tools, **kwargs):
@@ -34,8 +33,8 @@ class DemoChatLLM:
             msg_type = getattr(msg, "type", None)
             if msg_type == "system" or msg.__class__.__name__ == "SystemMessage":
                 system_text = content
-            else:
-                user_text = content or user_text
+            elif msg_type == "human" or msg.__class__.__name__ == "HumanMessage":
+                user_text = content
         if not user_text and hasattr(input_text, "content"):
             user_text = input_text.content
         elif not user_text and isinstance(input_text, str):
@@ -43,6 +42,7 @@ class DemoChatLLM:
         return AIMessage(content=self._answer(system_text, user_text))
 
     def _answer(self, system_text, question):
+        question = self._normalize_question(question)
         lower = (question or "").lower()
         if "1+1" in lower or "1 + 1" in lower:
             return "2"
@@ -57,86 +57,132 @@ class DemoChatLLM:
 
         return (
             "[Demo Mock LLM] I could not find that in the loaded knowledge base. "
-            "Install demo data (Sales & Inventory) and run **Build knowledge** on AI Memory. "
-            f"Question: {question[:200]!r}"
+            "Open quest **Demo Chat — Sales & Inventory**, ensure **AI Memory** "
+            "records are **Active** with a FAISS index, then ask again. "
+            f"(Parsed {len(chunks)} knowledge records from memory.) "
+            f"Question: {question[:160]!r}"
         )
+
+    @staticmethod
+    def _normalize_question(question):
+        if not question:
+            return ""
+        q = question.strip()
+        q = re.sub(r"\s*→\s*.*$", "", q, flags=re.IGNORECASE)
+        q = re.sub(r"\s*\(from\s+[^)]*memory\)\s*", " ", q, flags=re.IGNORECASE)
+        q = q.strip(" '\"")
+        return q
 
     @staticmethod
     def _extract_memory_chunks(system_text):
         chunks = []
         if not system_text:
             return chunks
-        for match in re.finditer(r"\{[^{}]*\}", system_text, re.DOTALL):
-            raw = match.group(0)
+        # Each embedded Odoo record is one JSON object (possibly multi-line)
+        decoder = json.JSONDecoder()
+        idx = 0
+        text = system_text
+        while idx < len(text):
+            start = text.find("{", idx)
+            if start < 0:
+                break
             try:
-                chunks.append(json.loads(raw))
+                obj, end = decoder.raw_decode(text, start)
+                if isinstance(obj, dict):
+                    chunks.append(obj)
+                idx = end
             except json.JSONDecodeError:
-                continue
+                idx = start + 1
         return chunks
 
     def _answer_from_chunks(self, chunks, question):
-        q = (question or "").lower()
+        q = self._normalize_question(question).lower()
         records = [c for c in chunks if isinstance(c, dict)]
         if not records:
             return None
 
-        # Single-record lookups by name / code / reference
+        # Product / SKU codes in question
+        code_match = re.search(r"demo[-_][a-z0-9-]+", q, re.I)
+        if code_match:
+            code = code_match.group(0).lower().replace("_", "-")
+            for rec in records:
+                if str(rec.get("default_code", "")).lower().replace("_", "-") == code:
+                    return self._format_record(rec)
+
+        # Name tokens (steel, bracket, chair, acme, beta, ...)
+        tokens = [t for t in re.findall(r"[a-z0-9]{3,}", q) if t not in (
+            "demo", "many", "what", "the", "have", "from", "that", "this", "with",
+            "how", "much", "total", "amount", "order", "hand", "stock", "inventory",
+        )]
+
+        best = None
+        best_score = 0
         for rec in records:
-            name = str(rec.get("name") or rec.get("display_name") or "").lower()
-            code = str(rec.get("default_code") or "").lower()
-            ref = str(rec.get("client_order_ref") or "").lower()
-            if name and name in q:
-                return self._format_record(rec, question)
-            if code and code in q:
-                return self._format_record(rec, question)
-            if ref and ref in q:
-                return self._format_record(rec, question)
+            blob = json.dumps(rec, default=str).lower()
+            score = sum(1 for t in tokens if t in blob)
+            if score > best_score:
+                best_score = score
+                best = rec
+        if best and best_score >= 1:
+            return self._format_record(best)
 
-        # Keyword routing
-        if any(w in q for w in ("stock", "inventory", "on hand", "quantity", "quant")):
+        # Explicit field-based routing
+        if any(w in q for w in ("stock", "inventory", "on hand", "quantity", "how many")):
             stock_recs = [r for r in records if "quantity" in r or "qty_available" in r]
+            if len(stock_recs) == 1:
+                return self._format_record(stock_recs[0])
+            for rec in stock_recs:
+                name = str(rec.get("name") or rec.get("product_id") or "").lower()
+                if any(t in name for t in tokens):
+                    return self._format_record(rec)
             if stock_recs:
-                lines = ["From inventory knowledge:"]
-                for r in stock_recs[:8]:
-                    lines.append(self._format_record(r, question))
-                return "\n".join(lines)
+                return self._format_stock_summary(stock_recs)
 
-        if any(w in q for w in ("sale", "order", "customer", "total", "revenue")):
-            so_recs = [r for r in records if "amount_total" in r or "invoice_status" in r]
+        if any(w in q for w in ("sale", "order", "customer", "total", "revenue", "amount")):
+            so_recs = [r for r in records if "amount_total" in r]
+            for rec in so_recs:
+                ref = str(rec.get("client_order_ref", "")).lower()
+                if ref and ref in q:
+                    return self._format_record(rec)
             if so_recs:
-                lines = ["From sales order knowledge:"]
-                for r in so_recs[:8]:
-                    lines.append(self._format_record(r, question))
-                return "\n".join(lines)
+                return self._format_record(so_recs[0])
 
-        if any(w in q for w in ("product", "price", "sku", "item")):
+        if any(w in q for w in ("product", "price", "sku", "list price")):
             prod_recs = [r for r in records if "list_price" in r or "default_code" in r]
             if prod_recs:
-                lines = ["From product knowledge:"]
-                for r in prod_recs[:8]:
-                    lines.append(self._format_record(r, question))
-                return "\n".join(lines)
+                return self._format_record(prod_recs[0])
 
-        # Fallback: return best partial match
-        for rec in records:
-            blob = json.dumps(rec).lower()
-            for token in re.findall(r"[a-z0-9]{4,}", q):
-                if token in blob:
-                    return self._format_record(rec, question)
         return None
 
     @staticmethod
-    def _format_record(rec, question):
-        parts = []
-        label = rec.get("name") or rec.get("display_name") or rec.get("client_order_ref") or "Record"
-        parts.append(f"**{label}** (from demo knowledge)")
+    def _format_record(rec):
+        label = (
+            rec.get("name")
+            or rec.get("display_name")
+            or rec.get("client_order_ref")
+            or "Record"
+        )
+        if isinstance(label, (list, tuple)) and len(label) == 2:
+            label = label[1]
+        parts = [f"**{label}** (from demo Sales & Inventory knowledge)"]
         for key, val in rec.items():
-            if key in ("id",) or val in (False, None, ""):
+            if key == "id" or val in (False, None, ""):
                 continue
             if isinstance(val, (list, tuple)) and len(val) == 2:
                 val = val[1]
             parts.append(f"- {key.replace('_', ' ').title()}: {val}")
         return "\n".join(parts)
+
+    @staticmethod
+    def _format_stock_summary(records):
+        lines = ["**Stock on hand (demo knowledge)**"]
+        for rec in records:
+            name = rec.get("name") or rec.get("product_id")
+            if isinstance(name, (list, tuple)):
+                name = name[1]
+            qty = rec.get("qty_available") or rec.get("quantity")
+            lines.append(f"- {name}: {qty}")
+        return "\n".join(lines)
 
 
 class DemoEmbeddings(Embeddings):

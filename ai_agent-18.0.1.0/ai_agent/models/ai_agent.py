@@ -341,12 +341,18 @@ class AIAgent(models.Model):
                 # ~ session.add_message(f"Agent {self.name} received messages: {len(messages)} {messages=} {state=}")
                 _logger.info(f"Agent {self.name} received messages: {len(messages)}  {state=}")
                 
+            user_question = topic or latest_message
+            if messages and isinstance(messages[-1], HumanMessage):
+                user_question = messages[-1].content or user_question
+            memory_context = self._get_memory(user_question)
+
             system_message = SystemMessage(
                 content=f"""You are an agent with specific responsibilities.
                 Role: {self.ai_role}
                 Goal: {self.ai_goal}
                 Backstory: {self.ai_backstory}
-                Memory: {self._get_memory(latest_message)} {self._get_memory(topic)}
+                Memory:
+                {memory_context}
 
                 Instructions:
                 - Provide thorough, complete responses
@@ -363,7 +369,7 @@ class AIAgent(models.Model):
                 session.add_message(f"Agent {self.name} system message: {system_message=} {state=}")
                 _logger.error(f"Agent {self.name} system message: {system_message=} {session=} {state=}")
 
-            messages = [system_message, HumanMessage(content=topic)]
+            messages = [system_message, HumanMessage(content=user_question)]
 
             # Apply rate limiting before invoking LLM
             if not self.ai_agent_llm_id.check_rate_limits(input_text=topic):
@@ -453,17 +459,40 @@ class AIAgent(models.Model):
 
         return agent_node
 
-    def _get_memory(self, question, k=3, **kwarg):
+    def _get_memory(self, question, k=5, **kwarg):
+        """Retrieve FAISS chunks for the user question (all linked memories)."""
+        if not question or not self.ai_memory_ids:
+            return ""
         rags = []
-        for ai_quest_memory_id in self.ai_memory_ids:
-            if ai_quest_memory_id.ai_memory_id.vector_type == "faiss":
-                ai_memory_id = ai_quest_memory_id.ai_memory_id
-                db = ai_memory_id.load_faiss()
-                if db:
-                    docs = db.similarity_search(question, k=k)
-                    for doc in docs:
-                        if doc and doc.page_content:
-                           rags.append(doc.page_content)
+        query = (question or "").strip() or "demo"
+        for agent_memory in self.ai_memory_ids:
+            memory = agent_memory.ai_memory_id
+            if not memory or memory.vector_type != "faiss":
+                continue
+            limit = memory.nbr_rags or k
+            try:
+                db = memory.load_faiss()
+                if not db and memory.status == "active":
+                    memory.run()
+                    db = memory.load_faiss()
+                if not db:
+                    _logger.warning(
+                        "Agent %s: memory %s has no FAISS index",
+                        self.name,
+                        memory.name,
+                    )
+                    continue
+                docs = db.similarity_search(query, k=limit)
+                for doc in docs:
+                    if doc and doc.page_content:
+                        rags.append(doc.page_content)
+            except Exception as e:
+                _logger.warning(
+                    "Agent %s: memory search failed on %s: %s",
+                    self.name,
+                    memory.name,
+                    e,
+                )
         return "\n".join(rags)
 
     def _get_tools(self, state=None):

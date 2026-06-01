@@ -160,6 +160,8 @@ For **chat**, binding a model helps when code or agents use `object_id` / sessio
 **Configuration → AI Memory** — upload documents/URLs; link memory to agents.  
 The LLM can use embedded knowledge (vectors) in addition to live Odoo context.
 
+For a full walkthrough with **Sales**, **Inventory**, and sample **DEMO-*** data, see [§12 Sales & Inventory demo — test the knowledge base](#12-sales--inventory-demo--test-the-knowledge-base).
+
 ---
 
 ## 6. Use case scenarios (by Initiate type)
@@ -345,6 +347,7 @@ Enable **Debug** on quest/agent for more chatter log detail.
 | Could not confirm llm | Install provider pip package; restart Odoo |
 | Chat bot missing | Quest **Active** + Initiate **Chat**; save quest again |
 | No reply in Discuss | Agent **Active**; LLM **Confirmed** |
+| Knowledge chat empty | Wrong Discuss bot — use **Sales & Inventory** quest (§12) |
 | `ai.quest` 404 | Restart Odoo after installing `ai_agent` |
 | Agent has no LLM in list | Filter requires **Confirmed** non-embedded LLM |
 
@@ -356,6 +359,107 @@ Enable **Debug** on quest/agent for more chatter log detail.
 - [ ] Open quest **Demo Chat — Odoo Helper** → **Active**  
 - [ ] **Discuss** → test message  
 - [ ] (Optional) Load [demo scenarios](../demo/ai_agent_demo_scenarios.xml) via module demo or shell `convert_file`
+- [ ] Sales & Inventory demo: quest **Demo Chat — Sales & Inventory** + 3 **AI Memory** records **Active** (see §12)
+
+---
+
+## 12. Sales & Inventory demo — test the knowledge base
+
+This scenario loads **demo products, sale orders, and stock** into Odoo, embeds them into **AI Memory (FAISS)**, and answers questions in **Discuss** using **Demo Mock** (no OpenAI billing).
+
+### What is in the knowledge base?
+
+| AI Memory | Odoo source | Demo content |
+|-------------|-------------|--------------|
+| **DEMO Products Catalog** | `product.product` | 4 products (`DEMO-SRV-001`, `DEMO-PROD-010/020/030`) |
+| **DEMO Sales Orders** | `sale.order` | `DEMO-ACME-2026`, `DEMO-BETA-2026` |
+| **DEMO Stock On Hand** | `stock.quant` | Brackets **250**, chairs **45**, desks **18** |
+
+**Agent:** *Sales & Inventory Demo Assistant* (3 memories linked)  
+**Quest:** *Demo Chat — Sales & Inventory* (Discuss 1:1 chat)
+
+> Use **Demo Chat — Sales & Inventory**, not *Demo Chat — Odoo Helper*. Only the Sales & Inventory agent has the product/order/stock memories.
+
+### Step 1 — Load demo data (once per database)
+
+**Option A — Install module with demo data**
+
+Install `ai_agent` with **Load demonstration data** checked (requires **Sales** and **Inventory** apps).
+
+**Option B — Existing database (recommended)**
+
+```powershell
+cd D:\odoo\odoo18
+.\.venv\Scripts\python.exe .\odoo18\odoo-bin server -c .\odoo_conf\odoo18.conf
+
+# In another terminal:
+Get-Content D:\odoo\odoo18\scripts\setup_ai_agent_sales_inventory_demo.py | `
+  .\.venv\Scripts\python.exe odoo18\odoo-bin shell -c odoo_conf\odoo18.conf -d odoo18 --no-http
+```
+
+This creates DEMO partners/products/orders, sets stock, builds FAISS indexes, and pins the Discuss chat for admin.
+
+### Step 2 — Verify configuration
+
+| Check | Where | Expected |
+|-------|--------|----------|
+| Chat LLM | **LLMs → Demo Mock-demo-gpt** | Status **Confirmed** |
+| Embed LLM | **LLMs → Demo Mock-demo-embed** | Status **Confirmed** |
+| Memories | **AI Memory** | 3× **DEMO *** records, status **Active**, FAISS built |
+| Agent | **Agents → Sales & Inventory Demo Assistant** | **Memory** tab shows 3 lines |
+| Quest | **Ai Quest → Demo Chat — Sales & Inventory** | **Active**, agent linked |
+
+If a memory is **Draft**, open it and click **Run** (or re-run the setup script above).
+
+### Step 3 — Test in Discuss (get a result)
+
+1. Open **Discuss** (main menu).
+2. In the sidebar, open **Demo Chat — Sales & Inventory** (not Odoo Helper).
+3. Type a question and press **Enter**.
+4. Wait a few seconds for the bot reply.
+
+**Example questions and expected answers**
+
+| Ask | You should see (from knowledge) |
+|-----|----------------------------------|
+| How many **DEMO Steel Bracket Kit** do we have on hand? | Qty available **250**, SKU **DEMO-PROD-010**, price **120** |
+| What is the list price of **DEMO-PROD-020**? | **DEMO Ergonomic Chair**, price **349**, qty **45** |
+| What is the total amount for **DEMO-ACME-2026**? | Customer **DEMO Acme Trading**, total about **24,150**, state **sale** |
+| Who is the customer on **DEMO-BETA-2026**? | **DEMO Beta Retail** |
+| How many **chairs** are in stock? | **DEMO Ergonomic Chair**, qty **45** |
+
+Use product names, SKUs (`DEMO-PROD-*`), or order refs (`DEMO-ACME-2026`). Questions about **price**, **stock**, **customer**, and **order total** work best.
+
+```
+You: How many DEMO Steel Bracket Kit do we have on hand?
+Bot: DEMO Steel Bracket Kit — Default Code DEMO-PROD-010 — Qty Available 250.0 ...
+```
+
+### Step 4 — Automated screenshots (Playwright)
+
+UI proof for training/docs is captured automatically:
+
+```powershell
+cd D:\odoo\odoo18
+$env:ODOO_URL="http://127.0.0.1:8018"
+$env:ODOO_DB="odoo18"
+npx playwright test ai_agent_sales_inventory_chat_uat.spec.ts `
+  --config=projects/mg_projects/ai_agent-18.0.1.0/ai_agent/tests/playwright.config.ts
+```
+
+Output: [screenshots/sales-inventory-chat/](screenshots/sales-inventory-chat/README.md) (memory, agent, quest, Discuss Q&A with answers).
+
+### Troubleshooting knowledge chat
+
+| Problem | Fix |
+|---------|-----|
+| *I could not find that in the loaded knowledge base* | Use quest **Demo Chat — Sales & Inventory**; re-run setup script; confirm 3 memories **Active** |
+| Wrong or generic answer | Restart Odoo after code updates; rebuild memory (**Run** on each DEMO memory) |
+| No **Sales & Inventory** in Discuss sidebar | Run setup script (`setup_demo_discuss_channels`) or save quest **Active** again |
+| Empty stock answers | Products must be **storable**; run `setup_demo_sales_inventory_stock` via setup script |
+| Works in shell but not UI | Same quest in Discuss; hard-refresh browser (Ctrl+F5) |
+
+More demo details: [demo/README.md](../demo/README.md).
 
 ---
 
@@ -373,5 +477,6 @@ npx playwright test projects/mg_projects/ai_agent-18.0.1.0/ai_agent/tests/ai_age
 ## Related docs
 
 - [demo/README.md](../demo/README.md) — demo records list  
+- [screenshots/sales-inventory-chat/README.md](screenshots/sales-inventory-chat/README.md) — Playwright shots for §12  
 - [../../edafa_legacy_project/docs/USER_GUIDE.md](../../../edafa_legacy_project/docs/USER_GUIDE.md) — Legacy Payroll scenarios  
 - Module manifest description — provider list and pip packages  

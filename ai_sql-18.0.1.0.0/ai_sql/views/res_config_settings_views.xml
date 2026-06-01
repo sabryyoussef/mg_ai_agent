@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_ai_sql" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.ai.sql</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+
+                <app data-string="Niyu AI Analyst"
+                     string="Niyu AI SQL Generator"
+                     name="ai_sql_generator"
+                     logo="/ai_sql/static/description/icon.png">
+
+                    <div class="card o_panel mb-4 shadow-sm"
+                         style="border:1px solid #dbeafe; border-radius:18px; overflow:hidden; box-shadow:0 12px 30px rgba(15,23,42,0.08);">
+
+                        <!-- Header -->
+                        <div class="card-header d-flex align-items-center"
+                             style="background:linear-gradient(135deg,#eff6ff 0%,#ffffff 100%); border-bottom:1px solid #dbeafe; padding:18px 20px;">
+
+                            <div style="height:48px; width:48px; border-radius:14px; background:#ffffff; border:1px solid #dbeafe; display:flex; align-items:center; justify-content:center; margin-right:14px; box-shadow:0 6px 16px rgba(37,99,235,0.10);">
+                                <img src="/ai_sql/static/description/icon.png"
+                                     alt="Logo"
+                                     style="height:34px; width:34px; object-fit:contain;"/>
+                            </div>
+
+                            <div>
+                                <h4 class="mb-0" style="font-size:22px; font-weight:800; color:#0f172a; margin:0;">
+                                    AI SQL Generator Configuration
+                                </h4>
+                                <div style="font-size:13px; color:#64748b; margin-top:4px;">
+                                    Add your OpenAI API key to enable AI-generated SQL queries.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Body -->
+                        <div class="card-body p-4" style="background:#ffffff;">
+                            <group>
+                                <div class="form-group row mb-0">
+                                    <label for="user_openai_api_key"
+                                           class="col-sm-3 col-form-label font-weight-bold h5 text-primary"
+                                           style="font-size:18px;">
+                                        OpenAI API Key
+                                    </label>
+                                    <div class="col-sm-9">
+                                        <field name="user_openai_api_key"
+                                               password="True"
+                                               class="o_field_char form-control"/>
+                                    </div>
+                                </div>
+                            </group>
+
+                            <div style="margin-top:16px; padding:11px 14px; border-radius:10px; background:#fefce8; border:1px solid #fde68a; border-left:5px solid #facc15;">
+                                <span style="font-size:14px; color:#713f12;">
+                                    <b>Important:</b> Enter your OpenAI API key, make sure credits are available, then click <b>SAVE</b>.
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Premium Niyu Labs Support Section -->
+                        <div class="card-footer" style="background:#ffffff; border-top:1px solid #e2e8f0; padding:0;">
+
+                            <div style="position:relative; overflow:hidden; margin:0; background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 48%,#7c3aed 100%); padding:22px; color:#ffffff;">
+
+                                <div style="position:absolute; right:-70px; top:-90px; width:220px; height:220px; border-radius:999px; background:rgba(255,255,255,0.12);"></div>
+                                <div style="position:absolute; left:45%; bottom:-120px; width:260px; height:260px; border-radius:999px; background:rgba(255,255,255,0.08);"></div>
+
+                                <div style="position:relative; display:grid; grid-template-columns:minmax(0, 1fr) 260px; gap:20px; align-items:center;">
+
+                                    <!-- Main Text -->
+                                    <div>
+                                        <div style="font-size:20px; font-weight:900; letter-spacing:-0.3px; line-height:1.25; margin-bottom:10px;">
+                                            Need help with setup or Odoo data workflows?
+                                        </div>
+
+                                        <div style="font-size:13.5px; color:#dbeafe; line-height:1.65; margin-bottom:10px;">
+                                            This app is maintained by <b style="color:#ffffff;">Niyu Labs</b>, a team focused on AI, analytics, forecasting, and data connectors for Odoo.
+                                        </div>
+
+                                        <div style="font-size:13.5px; color:#dbeafe; line-height:1.65; margin-bottom:10px;">
+                                            For setup help, connection issues, custom reporting flows, or questions about using this app with your Odoo database, contact
+                                            <a href="mailto:info@niyulabs.com"
+                                               style="color:#ffffff; font-weight:900; text-decoration:underline;">
+                                                info@niyulabs.com
+                                            </a>
+                                            or visit
+                                            <a href="https://niyulabs.com"
+                                               target="_blank"
+                                               style="color:#ffffff; font-weight:900; text-decoration:underline;">
+                                                niyulabs.com
+                                            </a>.
+                                        </div>
+
+                                        <div style="font-size:13.5px; color:#dbeafe; line-height:1.65;">
+                                            Check catalogue warehouse connectors (BigQuery, Snowflake, Redshift, Synapse and more), AI analytics, and inventory forecasting &amp; management, all built specifically for Odoo
+                                            <a href="https://apps.odoo.com/apps/modules/browse?author=Niyu%20Labs"
+                                               target="_blank"
+                                               style="color:#ffffff; font-weight:900; text-decoration:underline;">
+                                                https://apps.odoo.com/apps/modules/browse?author=Niyu%20Labs
+                                            </a>
+                                        </div>
+                                    </div>
+
+                                    <!-- Action Panel -->
+                                    <div style="background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.22); border-radius:18px; padding:16px; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.05);">
+
+                                        <div style="font-size:13px; font-weight:900; color:#ffffff; margin-bottom:10px;">
+                                            Quick links
+                                        </div>
+
+                                        <div style="display:flex; flex-direction:column; gap:9px;">
+
+                                            <a href="mailto:info@niyulabs.com"
+                                               style="display:block; text-align:center; padding:10px 12px; border-radius:10px; background:#ffffff; color:#0f172a; font-size:13px; font-weight:900; text-decoration:none;">
+                                                Contact Support
+                                            </a>
+
+                                            <a href="https://niyulabs.com"
+                                               target="_blank"
+                                               style="display:block; text-align:center; padding:10px 12px; border-radius:10px; background:rgba(255,255,255,0.13); color:#ffffff; border:1px solid rgba(255,255,255,0.28); font-size:13px; font-weight:900; text-decoration:none;">
+                                                Visit Niyu Labs
+                                            </a>
+
+                                            <a href="https://apps.odoo.com/apps/modules/browse?author=Niyu%20Labs"
+                                               target="_blank"
+                                               style="display:block; text-align:center; padding:10px 12px; border-radius:10px; background:rgba(255,255,255,0.13); color:#ffffff; border:1px solid rgba(255,255,255,0.28); font-size:13px; font-weight:900; text-decoration:none;">
+                                                View Odoo Apps
+                                            </a>
+
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </app>
+
+            </xpath>
+        </field>
+    </record>
+</odoo>

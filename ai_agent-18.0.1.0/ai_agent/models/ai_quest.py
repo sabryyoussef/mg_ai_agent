@@ -1536,8 +1536,10 @@ class AIQuest(models.Model):
             
         def initial_node(state):
             """Initialize the state for the chain."""
-            # Get the initial message/topic
-            initial_message = kwargs.get('topic', kwargs.get('message', '')) + " " + quest_description
+            # Chat: keep the user message clean for RAG / Demo Mock matching
+            initial_message = kwargs.get('topic', kwargs.get('message', ''))
+            if self.init_type != 'chat':
+                initial_message = f"{initial_message} {quest_description}".strip()
 
             #TODO Fixa extra context T/0463
 
